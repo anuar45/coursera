@@ -30,11 +30,12 @@ func dirTree(w io.Writer, p string, files bool) error {
 		return err
 	}
 
-	for i := 0; i < identCount; i++ {
-		tabs += "|   "
-	}
-
 	for i, dir := range dirList {
+		tabs = ""
+		for j := 0; j < identCount; j++ {
+			tabs += "|\t "
+		}
+
 		if i != len(dirList)-1 {
 			prefix = "├───"
 		} else {
