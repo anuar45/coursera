@@ -44,9 +44,13 @@ func dirTree(w io.Writer, p string, files bool) error {
 		dirStr := tabs + prefix + dir.Name()
 
 		fmt.Fprintln(w, dirStr)
-		// else: print normal
 		dirPath := p + "//" + dir.Name()
 		dirTree(w, dirPath, files)
 	}
 	return nil
+}
+
+func getPrefix(fp string) string {
+	fpList := filepath.SplitList(fp)
+
 }
