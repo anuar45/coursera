@@ -73,3 +73,12 @@ func TestTreeDir(t *testing.T) {
 		t.Errorf("test for OK Failed - results not match\nGot:\n%v\nExpected:\n%v", result, testDirResult)
 	}
 }
+
+func TestGetPrefix(t *testing.T) {
+	input := "testdata/zline/lorem/ipsum/gopher.png"
+	want := "|\t \t \t"
+	got := getPrefix(input)
+	if got != want {
+		t.Errorf("getPrefix failed.\nInput:\n%s\nGot:\n%s\nWant:\n%s", input, got, want)
+	}
+}

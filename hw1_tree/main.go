@@ -6,7 +6,6 @@ import (
 	"io/ioutil"
 	"os"
 	"strings"
-	//"path/filepath"
 )
 
 func main() {
@@ -23,34 +22,47 @@ func main() {
 }
 
 func dirTree(w io.Writer, p string, files bool) error {
-	identCount := strings.Count(p, "//")
-	var tabs, prefix string
-	dirList, err := ioutil.ReadDir(p)
-	if err != nil {
-		return err
-	}
+	var prefixStr string
+	dirList, _ := ioutil.ReadDir(p)
 
 	for i, dir := range dirList {
-		tabs = ""
-		for j := 0; j < identCount; j++ {
-			tabs += "|\t "
-		}
-
+		dirPath := p + "/" + dir.Name()
+		tabStr := getPrefix(dirPath)
 		if i != len(dirList)-1 {
-			prefix = "├───"
+			prefixStr = "├───────"
 		} else {
-			prefix = "└───"
+			prefixStr = "└───────"
 		}
-		dirStr := tabs + prefix + dir.Name()
+		dirStr := tabStr + prefixStr + dir.Name()
 
 		fmt.Fprintln(w, dirStr)
-		dirPath := p + "//" + dir.Name()
+
 		dirTree(w, dirPath, files)
 	}
 	return nil
 }
 
 func getPrefix(fp string) string {
-	fpList := filepath.SplitList(fp)
+	fpList := strings.Split(fp, "/")
+	//fmt.Println(fpList)
+	var tabStr string
+	dirPath := fpList[0]
+	for i := 1; i < len(fpList); i++ {
 
+		//fmt.Println(dirPath)
+		dirList, _ := ioutil.ReadDir(dirPath)
+		//fmt.Println(dirList)
+
+		dirPath += "/" + fpList[i]
+		//if dirList == nil {
+		//	return tabStr + " \t"
+		//}
+		//fmt.Println(fpList[i], dirList[len(dirList)-1].Name())
+		if fpList[i] == dirList[len(dirList)-1].Name() {
+			tabStr += " \t"
+		} else {
+			tabStr += "│\t"
+		}
+	}
+	return tabStr
 }
