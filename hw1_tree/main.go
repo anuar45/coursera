@@ -68,7 +68,7 @@ func getPrefix(fp string, pf bool) string {
 			}
 		} else {
 			if fpList[i] == dirList[len(dirList)-1].Name() {
-				preStr += " \t"
+				preStr += "\t"
 			} else {
 				preStr += "│\t"
 			}

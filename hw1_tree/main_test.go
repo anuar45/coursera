@@ -76,7 +76,7 @@ func TestTreeDir(t *testing.T) {
 
 func TestGetPrefix(t *testing.T) {
 	input := "testdata/zline/lorem/gopher.png"
-	want := "│\t \t├───"
+	want := "│\t\t├───"
 	got := getPrefix(input, true)
 	if got != want {
 		t.Errorf("getPrefix failed.\nInput:\n%s\nGot:\n%s\nWant:\n%s", input, got, want)
