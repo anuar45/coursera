@@ -75,7 +75,7 @@ func TestTreeDir(t *testing.T) {
 }
 
 func TestGetPrefix(t *testing.T) {
-	input := "testdata/zline/lorem/ipsum/gopher.png"
+	input := "testdata/zline/lorem/gopher.png"
 	want := "|\t \t \t"
 	got := getPrefix(input)
 	if got != want {

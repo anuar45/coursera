@@ -27,13 +27,8 @@ func dirTree(w io.Writer, p string, files bool) error {
 
 	for i, dir := range dirList {
 		dirPath := p + "/" + dir.Name()
-		tabStr := getPrefix(dirPath)
-		if i != len(dirList)-1 {
-			prefixStr = "├───────"
-		} else {
-			prefixStr = "└───────"
-		}
-		dirStr := tabStr + prefixStr + dir.Name()
+		prefixStr := getPrefix(dirPath)
+		dirStr := prefixStr + dir.Name()
 
 		fmt.Fprintln(w, dirStr)
 
@@ -58,10 +53,17 @@ func getPrefix(fp string) string {
 		//	return tabStr + " \t"
 		//}
 		//fmt.Println(fpList[i], dirList[len(dirList)-1].Name())
-		if fpList[i] == dirList[len(dirList)-1].Name() {
-			tabStr += " \t"
+		if i != len(dirList)-1 {
+			prefixStr = "├───────"
 		} else {
-			tabStr += "│\t"
+			prefixStr = "└───────"
+		}
+		if i != 1 {
+			if fpList[i] == dirList[len(dirList)-1].Name() {
+				tabStr += " \t"
+			} else {
+				tabStr += "│\t"
+			}
 		}
 	}
 	return tabStr
