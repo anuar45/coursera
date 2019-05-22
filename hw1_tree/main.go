@@ -21,36 +21,50 @@ func main() {
 	}
 }
 
-func dirTree(w io.Writer, p string, files bool) error {
+func dirTree(w io.Writer, p string, pf bool) error {
 	var prefixStr string
 	dirList, _ := ioutil.ReadDir(p)
 
 	for _, dir := range dirList {
 		dirPath := p + "/" + dir.Name()
-		prefixStr = getPrefix(dirPath)
+		prefixStr = getPrefix(dirPath, pf)
 		dirStr := prefixStr + dir.Name()
 
-		fmt.Fprintln(w, dirStr)
-
-		dirTree(w, dirPath, files)
+		if dir.IsDir() {
+			fmt.Fprintln(w, dirStr)
+			dirTree(w, dirPath, pf)
+		} else {
+			if pf {
+				fmt.Fprintln(w, dirStr, getFileSize(dir))
+			}
+		}
 	}
 	return nil
 }
 
-func getPrefix(fp string) string {
+func getPrefix(fp string, pf bool) string {
 	fpList := strings.Split(fp, "/")
 	var preStr string
 	dirPath := fpList[0]
 	for i := 1; i < len(fpList); i++ {
 
 		dirList, _ := ioutil.ReadDir(dirPath)
+		if !pf {
+			tmpList := dirList
+			dirList = nil
+			for _, dir := range tmpList {
+				if dir.IsDir() {
+					dirList = append(dirList, dir)
+				}
+			}
+		}
 		dirPath += "/" + fpList[i]
 		//fmt.Println(fpList, i, len(fpList)-1)
 		if i == len(fpList)-1 {
-			if fpList[i] == dirList[len(dirList)-1].Name() {
-				preStr += "└───────"
+			if dirList != nil && fpList[i] == dirList[len(dirList)-1].Name() {
+				preStr += "└───"
 			} else {
-				preStr += "├───────"
+				preStr += "├───"
 			}
 		} else {
 			if fpList[i] == dirList[len(dirList)-1].Name() {
@@ -61,4 +75,13 @@ func getPrefix(fp string) string {
 		}
 	}
 	return preStr
+}
+
+func getFileSize(fi os.FileInfo) string {
+	fiSize := fi.Size()
+	if fiSize == 0 {
+		return "(empty)"
+	} else {
+		return fmt.Sprintf("(%db)", fiSize)
+	}
 }
