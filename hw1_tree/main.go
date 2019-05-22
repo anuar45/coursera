@@ -81,7 +81,7 @@ func getFileSize(fi os.FileInfo) string {
 	fiSize := fi.Size()
 	if fiSize == 0 {
 		return "(empty)"
-	} else {
-		return fmt.Sprintf("(%db)", fiSize)
 	}
+
+	return fmt.Sprintf("(%db)", fiSize)
 }
