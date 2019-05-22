@@ -25,9 +25,9 @@ func dirTree(w io.Writer, p string, files bool) error {
 	var prefixStr string
 	dirList, _ := ioutil.ReadDir(p)
 
-	for i, dir := range dirList {
+	for _, dir := range dirList {
 		dirPath := p + "/" + dir.Name()
-		prefixStr := getPrefix(dirPath)
+		prefixStr = getPrefix(dirPath)
 		dirStr := prefixStr + dir.Name()
 
 		fmt.Fprintln(w, dirStr)
@@ -39,32 +39,26 @@ func dirTree(w io.Writer, p string, files bool) error {
 
 func getPrefix(fp string) string {
 	fpList := strings.Split(fp, "/")
-	//fmt.Println(fpList)
-	var tabStr string
+	var preStr string
 	dirPath := fpList[0]
 	for i := 1; i < len(fpList); i++ {
 
-		//fmt.Println(dirPath)
 		dirList, _ := ioutil.ReadDir(dirPath)
-		//fmt.Println(dirList)
-
 		dirPath += "/" + fpList[i]
-		//if dirList == nil {
-		//	return tabStr + " \t"
-		//}
-		//fmt.Println(fpList[i], dirList[len(dirList)-1].Name())
-		if i != len(dirList)-1 {
-			prefixStr = "├───────"
-		} else {
-			prefixStr = "└───────"
-		}
-		if i != 1 {
+		//fmt.Println(fpList, i, len(fpList)-1)
+		if i == len(fpList)-1 {
 			if fpList[i] == dirList[len(dirList)-1].Name() {
-				tabStr += " \t"
+				preStr += "└───────"
 			} else {
-				tabStr += "│\t"
+				preStr += "├───────"
+			}
+		} else {
+			if fpList[i] == dirList[len(dirList)-1].Name() {
+				preStr += " \t"
+			} else {
+				preStr += "│\t"
 			}
 		}
 	}
-	return tabStr
+	return preStr
 }
