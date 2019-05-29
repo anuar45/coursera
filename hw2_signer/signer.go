@@ -21,18 +21,25 @@ func ExecutePipeline(jobfuncs ...job) {
 // SingleHash accepts in channel in makes operations and send to out
 func SingleHash(in, out chan interface{}) {
 	var result string
-	for data := range in {
-		dataStr := strconv.Itoa(data.(int))
-		fmt.Println(dataStr, "SingleHash", "data", dataStr)
-		md5Hash := DataSignerMd5(dataStr)
-		fmt.Println(dataStr, "SingleHash", "md5(data)", md5Hash)
-		crcMd5Hash := DataSignerCrc32(md5Hash)
-		fmt.Println(dataStr, "SingleHash", "crc32(md5(data))", crcMd5Hash)
-		crcHash := DataSignerCrc32(dataStr)
-		fmt.Println(dataStr, "SingleHash", "crc32(data)", crcHash)
-		result = crcHash + "~" + crcMd5Hash
-		fmt.Println(dataStr, "SingleHash", "result", result)
-		out <- result
+LOOP:
+	for {
+		select {
+		case data <- in:
+			dataStr := strconv.Itoa(data.(int))
+			fmt.Println(dataStr, "SingleHash", "data", dataStr)
+			md5Hash := DataSignerMd5(dataStr)
+			fmt.Println(dataStr, "SingleHash", "md5(data)", md5Hash)
+			crcMd5Hash := DataSignerCrc32(md5Hash)
+			fmt.Println(dataStr, "SingleHash", "crc32(md5(data))", crcMd5Hash)
+			crcHash := DataSignerCrc32(dataStr)
+			fmt.Println(dataStr, "SingleHash", "crc32(data)", crcHash)
+			result = crcHash + "~" + crcMd5Hash
+			fmt.Println(dataStr, "SingleHash", "result", result)
+			out <- result
+		case <- time.After(5*time.Millisecond):
+			break LOOP
+			out <- "end"
+		}
 	}
 }
 
@@ -57,10 +64,15 @@ func MultiHash(in, out chan interface{}) {
 func CombineResults(in, out chan interface{}) {
 	var result string
 	var sl []string
-	for data := range in {
-		dataStr := data.(string)
-		sl = append(sl, dataStr)
+	for {
+		select {
+		case data := <-in:
+			dataStr := data.(string)
+			sl = append(sl, dataStr)
+		case 
+		}
 	}
+
 	result = strings.Join(sl, "_")
 	fmt.Println("CombineResults", result)
 	out <- result
