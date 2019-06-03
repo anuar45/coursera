@@ -22,13 +22,14 @@ type PipeData struct {
 // ExecutePipeline makes pipiline of funcs
 func ExecutePipeline(jobFuncs ...job) {
 	in := make(chan interface{})
-	out := make(chan interface{})
-	for i := 0; i < len(jobFuncs)-1; i++ {
+	//out := make(chan interface{})
+	for i := 0; i < len(jobFuncs); i++ {
 		out := make(chan interface{})
 		go jobFuncs[i](in, out)
 		in = out
 	}
-	jobFuncs[len(jobFuncs)-1](in, out)
+
+	time.Sleep(2500 * time.Millisecond)
 }
 
 // SingleHash accepts in channel in makes operations and send to out
@@ -88,26 +89,27 @@ func CombineResults(in, out chan interface{}) {
 
 // CalcSingleHash calculates SingleHash value for one data entry
 func CalcSingleHash(pd *PipeData, out chan interface{}, wg *sync.WaitGroup, m *sync.Mutex) {
-	waitCh := make(chan struct{})
+	waitCRC := make(chan struct{})
+	waitCrcMD5 := make(chan struct{})
 	fmt.Println(pd.Value, "SingleHash", "data", pd.Value)
 	m.Lock()
 	md5Hash := DataSignerMd5(pd.Value)
 	m.Unlock()
 	fmt.Println(pd.Value, "SingleHash", "md5(data)", md5Hash)
-	pd.Lock()
-	pd.CrcMd5Hash = DataSignerCrc32(md5Hash)
-	pd.Unlock()
-	fmt.Println(pd.Value, "SingleHash", "crc32(md5(data))", pd.CrcMd5Hash)
-
 	go func() {
-		pd.Lock()
-		pd.CrcHash = DataSignerCrc32(pd.Value)
-		pd.Unlock()
-		fmt.Println(pd.Value, "SingleHash", "crc32(data)", pd.CrcHash)
-		waitCh <- struct{}{}
+		pd.CrcMd5Hash = DataSignerCrc32(md5Hash)
+		fmt.Println(pd.Value, "SingleHash", "crc32(md5(data))", pd.CrcMd5Hash)
+		close(waitCrcMD5)
 	}()
 
-	<-waitCh
+	go func() {
+		pd.CrcHash = DataSignerCrc32(pd.Value)
+		fmt.Println(pd.Value, "SingleHash", "crc32(data)", pd.CrcHash)
+		close(waitCRC)
+	}()
+
+	<-waitCRC
+	<-waitCrcMD5
 
 	pd.TildaHash = pd.CrcHash + "~" + pd.CrcMd5Hash
 	fmt.Println(pd.Value, "SingleHash", "result", pd.TildaHash)
