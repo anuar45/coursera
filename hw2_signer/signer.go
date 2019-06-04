@@ -6,7 +6,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"time"
 )
 
 type PipeData struct {
@@ -22,34 +21,30 @@ type PipeData struct {
 // ExecutePipeline makes pipiline of funcs
 func ExecutePipeline(jobFuncs ...job) {
 	in := make(chan interface{})
-	//out := make(chan interface{})
 	for i := 0; i < len(jobFuncs); i++ {
 		out := make(chan interface{})
-		go jobFuncs[i](in, out)
+		go func(i int, in, out chan interface{}) {
+			//fmt.Println(in, out, i)
+			jobFuncs[i](in, out)
+			close(out)
+		}(i, in, out)
 		in = out
 	}
-
-	time.Sleep(2500 * time.Millisecond)
+	<-in
 }
 
 // SingleHash accepts in channel in makes operations and send to out
 func SingleHash(in, out chan interface{}) {
 	wg := &sync.WaitGroup{}
 	m := new(sync.Mutex)
-LOOP:
-	for {
-		select {
-		case data := <-in:
-			wg.Add(1)
-			dataStr := strconv.Itoa(data.(int))
-			pd := PipeData{Value: dataStr}
-			go CalcSingleHash(&pd, out, wg, m)
-		case <-time.After(5 * time.Millisecond):
-			break LOOP
-		}
+	for data := range in {
+		wg.Add(1)
+		//fmt.Println("Entered SingleHash")
+		dataStr := strconv.Itoa(data.(int))
+		pd := PipeData{Value: dataStr}
+		go CalcSingleHash(&pd, out, wg, m)
 	}
 	wg.Wait()
-	close(out)
 }
 
 // MultiHash creates 6 hashes from one input
@@ -66,7 +61,6 @@ func MultiHash(in, out chan interface{}) {
 	}
 
 	wg.Wait()
-	close(out)
 }
 
 // CombineResults concatenates result with "_" separator
@@ -84,7 +78,6 @@ func CombineResults(in, out chan interface{}) {
 	result = strings.Join(sl, "_")
 	fmt.Println("CombineResults", result)
 	out <- result
-	close(out)
 }
 
 // CalcSingleHash calculates SingleHash value for one data entry
