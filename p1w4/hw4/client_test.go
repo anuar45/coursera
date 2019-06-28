@@ -3,19 +3,24 @@ package main
 import (
 	"encoding/json"
 	"encoding/xml"
-	"fmt"
 	"log"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
 	"testing"
 )
 
-type Users struct {
-	List []UserXML `xml:"root"`
+type Persons struct {
+	List []Person `xml:"root"`
 }
 
-type UserXML struct {
+const (
+	validToken   = "ValidToken"
+	invalidToken = "InvalidToken"
+)
+
+type Person struct {
 	ID            int    `json:"id"            xml:"id"`
 	Giud          string `json:"guid"          xml:"guid"`
 	IsActive      bool   `json:"isActive"      xml:"isActive"`
@@ -38,20 +43,62 @@ type UserXML struct {
 
 // TODO: It is a handler for httptest server, should return data from dataset.xml
 func SearchServer(w http.ResponseWriter, r *http.Request) {
-	// r.FormValues()
+	q := r.FormValue("query")
+	token := r.Header.Get("AccessToken")
+	if token == "" || token != validToken {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
 	xmlPath := "./dataset.xml"
-	users := GetUsers(xmlPath)
+	persons := GetPersons(xmlPath)
 
+	foundPersons := SearchPersons(persons, q)
 	w.WriteHeader(http.StatusOK)
 	we := json.NewEncoder(w)
-	we.Encode(users.List)
+	we.Encode(foundPersons)
 }
 
-func TestFindUsers(t *testing.T) {
+func SearchServerFatal(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusInternalServerError)
+}
+
+func GetPersons(p string) []Person {
+	var persons Persons
+	f, err := os.Open(p)
+	if err != nil {
+		log.Fatalf("Cant open file %s:", err)
+	}
+
+	xmlDecoder := xml.NewDecoder(f)
+	xmlDecoder.Decode(persons)
+
+	for _, p := range persons.List {
+		p.Name = p.FirstName + p.LastName
+	}
+
+	return persons.List
+}
+
+func SearchPersons(persons []Person, q string) []Person {
+	var personsMatched []Person
+	for _, p := range persons {
+		if strings.Contains(p.Name, q) || strings.Contains(p.About, q) {
+			personsMatched = append(personsMatched, p)
+		}
+	}
+	return personsMatched
+}
+
+func SortPersons(persons []Person, key string) {
+	var personsSorted []Person
+	//sort.Slice
+}
+
+func TestFindUsersSuccess(t *testing.T) {
 	// Here you should instatiate your test server with your handler
 	// and pass url of test server to call FindUsers
 	ts := httptest.NewServer(http.HandlerFunc(SearchServer))
-	token := "SomeToken"
+	token := validToken
 
 	sc := SearchClient{
 		AccessToken: token,
@@ -67,26 +114,132 @@ func TestFindUsers(t *testing.T) {
 	}
 
 	resp, err := sc.FindUsers(sr)
-	if err != nil {
-		log.Fatalf("Error getting users: %s", err)
+	if err != nil || resp == nil {
+		t.Errorf("Error searching users: %v", err)
 	}
-
-	fmt.Println(resp)
 }
 
-func GetUsers(p string) Users {
-	var users Users
-	f, err := os.Open(p)
+func TestFindUsersParams(t *testing.T) {
+	// Here you should instatiate your test server with your handler
+	// and pass url of test server to call FindUsers
+	var resp *SearchResponse
+	ts := httptest.NewServer(http.HandlerFunc(SearchServer))
+	token := "ValidToken"
+
+	sc := SearchClient{
+		AccessToken: token,
+		URL:         ts.URL,
+	}
+
+	srLimitMin := SearchRequest{
+		Limit:      -1,
+		Offset:     7,
+		Query:      "Annie",
+		OrderField: "FirstName",
+		OrderBy:    1,
+	}
+	srLimitMax := SearchRequest{
+		Limit:      27,
+		Offset:     7,
+		Query:      "Annie",
+		OrderField: "FirstName",
+		OrderBy:    1,
+	}
+	srOffsetMin := SearchRequest{
+		Limit:      5,
+		Offset:     -2,
+		Query:      "Annie",
+		OrderField: "FirstName",
+		OrderBy:    1,
+	}
+
+	resp, err := sc.FindUsers(srLimitMin)
+	if err == nil {
+		t.Errorf("Should return error on negative Limit param\n Got: %v", resp)
+	}
+
+	resp, err = sc.FindUsers(srLimitMax)
 	if err != nil {
-		log.Fatalf("Cant open file %s:", err)
+		t.Errorf("Should not error on Limit param bigger then 25\n Got: %v", resp)
 	}
 
-	xmlDecoder := xml.NewDecoder(f)
-	xmlDecoder.Decode(users)
+	resp, err = sc.FindUsers(srOffsetMin)
+	if err == nil {
+		t.Errorf("Should return error on negative Offset param\n Got: %v", resp)
+	}
+}
 
-	for _, user := range users.List {
-		user.Name = user.FirstName + user.LastName
+func TestFindUsersStatusUnauthorised(t *testing.T) {
+	// Here you should instatiate your test server with your handler
+	// and pass url of test server to call FindUsers
+	ts := httptest.NewServer(http.HandlerFunc(SearchServer))
+	token := invalidToken
+
+	sc := SearchClient{
+		AccessToken: token,
+		URL:         ts.URL,
 	}
 
-	return users
+	sr := SearchRequest{
+		Limit:      5,
+		Offset:     7,
+		Query:      "Annie",
+		OrderField: "FirstName",
+		OrderBy:    1,
+	}
+
+	resp, err := sc.FindUsers(sr)
+	if err.Error() != "Bad AccessToken" {
+		t.Errorf("Should return error on incorrect AcessToken header\n Got: %v", resp)
+	}
+}
+
+func TestFindUsersStatusInternalServerError(t *testing.T) {
+	// Here you should instatiate your test server with your handler
+	// and pass url of test server to call FindUsers
+	ts := httptest.NewServer(http.HandlerFunc(SearchServerFatal))
+	token := validToken
+
+	sc := SearchClient{
+		AccessToken: token,
+		URL:         ts.URL,
+	}
+
+	sr := SearchRequest{
+		Limit:      5,
+		Offset:     7,
+		Query:      "Annie",
+		OrderField: "FirstName",
+		OrderBy:    1,
+	}
+
+	resp, err := sc.FindUsers(sr)
+	if err.Error() != "SearchServer fatal error" {
+		t.Errorf("Should return internal fatal error on broken server\n Got: %v", resp)
+	}
+}
+
+func TestFindUsersStatusBadRequest(t *testing.T) {
+	// Here you should instatiate your test server with your handler
+	// and pass url of test server to call FindUsers
+	ts := httptest.NewServer(http.HandlerFunc(SearchServerFatal))
+	token := validToken
+
+	sc := SearchClient{
+		AccessToken: token,
+		URL:         ts.URL,
+	}
+
+	sr := SearchRequest{
+		Limit:      5,
+		Offset:     7,
+		Query:      "Annie",
+		OrderField: "FirstName",
+		OrderBy:    1,
+	}
+
+	resp, err := sc.FindUsers(sr)
+	if err.Error() != "SearchServer fatal error" {
+		t.Errorf("Should return internal fatal error on broken server\n Got: %v", resp)
+	}
 }
