@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 )
 
 type Persons []Person
@@ -117,6 +118,11 @@ func SearchServer(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusOK)
 	we.Encode(persons)
+}
+
+func SearchServerTimeout(w http.ResponseWriter, r *http.Request) {
+	time.Sleep(101 * time.Second)
+	w.WriteHeader(http.StatusOK)
 }
 
 func SearchServerFatal(w http.ResponseWriter, r *http.Request) {
@@ -474,5 +480,30 @@ func TestFindUsersNetError(t *testing.T) {
 	resp, err := sc.FindUsers(sr)
 	if err == nil {
 		t.Errorf("Should return network error, but got some result: %v", resp)
+	}
+}
+
+func TestFindUsersTimeoutError(t *testing.T) {
+	// Here you should instatiate your test server with your handler
+	// and pass url of test server to call FindUsers
+	ts := httptest.NewServer(http.HandlerFunc(SearchServerTimeout))
+	token := validToken
+
+	sc := SearchClient{
+		AccessToken: token,
+		URL:         ts.URL,
+	}
+
+	sr := SearchRequest{
+		Limit:      5,
+		Offset:     10,
+		Query:      "Annie",
+		OrderField: "Name",
+		OrderBy:    1,
+	}
+
+	resp, err := sc.FindUsers(sr)
+	if err == nil {
+		t.Errorf("Should return timeout error\n Got: %v", resp)
 	}
 }
